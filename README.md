@@ -14,8 +14,7 @@ pi install -l git:github.com/fyang93/pi-message-bridge
 ```
 
 Or install a local checkout with `pi install -l /absolute/path/to/pi-message-bridge`.
-Then `/reload`. AlphaForge already discovers its bundled copy; do not load both
-copies into the same session.
+Then `/reload`. Install only one copy into each Pi session.
 
 ```text
 /message-bridge on

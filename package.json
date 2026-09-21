@@ -1,12 +1,13 @@
 {
   "name": "pi-message-bridge",
   "version": "0.1.0",
+  "keywords": ["pi-package"],
   "description": "A local Socket + JSONL inbox for an existing Pi session",
   "type": "module",
   "repository": { "type": "git", "url": "https://github.com/fyang93/pi-message-bridge.git" },
   "files": ["index.ts", "README.md"],
   "pi": { "extensions": ["./index.ts"] },
   "scripts": { "test": "bun test ./index.test.ts" },
-  "peerDependencies": { "@earendil-works/pi-coding-agent": ">=0.86.0" },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "*" },
   "peerDependenciesMeta": { "@earendil-works/pi-coding-agent": { "optional": true } }
 }
