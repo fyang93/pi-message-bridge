@@ -23,7 +23,7 @@ Then `/reload`. Install only one copy into each Pi session.
 ```
 
 Loading/reloading does not start a listener. Once listening succeeds, the Pi status
-bar shows `🌉 Bridge ●` using the default status styling; stopping or session teardown removes it.
+bar shows `📨 Bridge ●` using the default status styling; stopping or session teardown removes it.
 `on` also prints the socket path, session ID and instance ID. Each activation has a new private directory under
 `$XDG_RUNTIME_DIR` (or the OS temporary directory), with an `endpoint.json`
 discovery file. That file contains connection metadata, not live status. Use `ping`
