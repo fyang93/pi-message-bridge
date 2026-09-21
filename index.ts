@@ -32,6 +32,7 @@ export default function messageBridge(pi: ExtensionAPI): void {
     const bridge = current;
     current = undefined;
     if (!bridge) return;
+    bridge.ctx.ui.setStatus("message-bridge", undefined);
     await bridge.ready.catch(() => {});
     for (const socket of bridge.connections) socket.destroy();
     if (bridge.server.listening) await new Promise<void>((resolve) => bridge.server.close(() => resolve()));
@@ -133,6 +134,7 @@ export default function messageBridge(pi: ExtensionAPI): void {
       writeFileSync(join(directory, "endpoint.json"), JSON.stringify({
         socket: path, session_id: bridge.session, instance_id: bridge.instance, cwd: ctx.cwd, pid: process.pid,
       }) + "\n", { mode: 0o600 });
+      ctx.ui.setStatus("message-bridge", ctx.ui.theme.fg("success", "message-bridge: on"));
       ctx.ui.notify(JSON.stringify(status(bridge)), "info");
     } catch {
       if (current === bridge) await stop();

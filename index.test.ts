@@ -8,13 +8,18 @@ import bridgeExtension from "./index.ts";
 function harness() {
   const events = new Map<string, Function>();
   const notices: string[] = [];
+  const statuses = new Map<string, string>();
   const messages: any[] = [];
   let command: any;
   let idle = true, pending = false, fail = false, session = "session-A";
   const ctx: any = {
     cwd: "/example/project", sessionManager: { getSessionId: () => session },
     isIdle: () => idle, hasPendingMessages: () => pending,
-    ui: { notify: (text: string) => notices.push(text) },
+    ui: {
+      notify: (text: string) => notices.push(text),
+      setStatus: (key: string, text?: string) => text === undefined ? statuses.delete(key) : statuses.set(key, text),
+      theme: { fg: (_color: string, text: string) => text },
+    },
   };
   bridgeExtension({
     registerCommand: (_name: string, value: any) => { command = value; },
@@ -27,7 +32,7 @@ function harness() {
     },
   } as any);
   return {
-    messages, notices,
+    messages, notices, statuses,
     command: (args: string) => command.handler(args, ctx),
     event: (name: string) => events.get(name)?.({}, ctx),
     busy: (value: boolean) => { idle = !value; },
@@ -74,7 +79,9 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
   try {
     await h.command("status");
     assert.equal(h.notices.at(-1), "message-bridge: off");
+    assert.equal(h.statuses.has("message-bridge"), false);
     await h.command("on");
+    assert.equal(h.statuses.has("message-bridge"), true);
     endpoint = h.endpoint();
     assert.equal(statSync(dirname(endpoint.socket)).mode & 0o777, 0o700);
     assert.equal(statSync(endpoint.socket).mode & 0o777, 0o600);
@@ -129,8 +136,10 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
     assert.equal((await client.next()).status, "accepted");
 
     await h.command("off");
+    assert.equal(h.statuses.has("message-bridge"), false);
     assert.equal(existsSync(dirname(endpoint.socket)), false);
     await h.command("on");
+    assert.equal(h.statuses.has("message-bridge"), true);
     const replacement = h.endpoint();
     assert.notEqual(replacement.instance_id, endpoint.instance_id);
     assert.notEqual(replacement.socket, endpoint.socket);
@@ -142,6 +151,7 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
     client.write(prompt(replacement));
     assert.equal((await client.next()).error, "target_mismatch");
     await h.event("session_before_tree");
+    assert.equal(h.statuses.has("message-bridge"), false);
     assert.equal(existsSync(dirname(replacement.socket)), false);
     assert.equal(h.messages.length, 5);
   } finally {
@@ -174,6 +184,7 @@ test("oversized input, uncertain injection, and shutdown with connected clients"
     assert.equal((await client.next()).status, "delivery_unknown");
     assert.equal(h.messages.length, 2);
     await h.event("session_shutdown");
+    assert.equal(h.statuses.has("message-bridge"), false);
     assert.equal(existsSync(dirname(endpoint.socket)), false);
     await h.event("session_shutdown");
   } finally {
