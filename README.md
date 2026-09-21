@@ -29,8 +29,9 @@ discovery file. That file contains connection metadata, not live status. Use `pi
 for current status; select an endpoint explicitly, never guess the newest session.
 
 The directory has mode `0700`; socket and manifest have mode `0600`. Only trusted
-processes running as the same OS user should connect. This is not an OS sandbox
-or trading authorization. Do not expose or proxy it to untrusted callers.
+processes running as the same OS user should connect: accepted text becomes a real
+Pi user message. This is not an OS sandbox and does not bypass project/tool approval
+requirements. Do not expose or proxy it to untrusted callers.
 
 ## Protocol
 
@@ -46,9 +47,10 @@ ISO timestamp checked at admission. IDs use 1–128 ASCII letters, digits, dots,
 underscores, colons or hyphens. The input buffer limit is 64 KiB; at most eight
 connections are allowed, with a ten-second inactivity timeout.
 
-- An idle session receives a visible `external-message` and starts a turn. The
-  message retains external provenance; it is not dispatched as a slash command
-  or proof of human approval. There is no direct tool-execution API.
+- An idle session receives the exact `message` text through `pi.sendUserMessage()`
+  and starts a turn. No prefix, wrapper prompt or custom message is added. Slash
+  command dispatch and skill/template expansion remain disabled: text is forwarded
+  literally. There is no direct tool-execution API.
 - Busy sessions, pending messages and blocking UI prompts return `busy`. Nothing
   is queued by this bridge. The caller decides whether to coalesce, discard or
   retry while still relevant. `expires_at` is **not** an execution deadline.

@@ -70,12 +70,7 @@ export default function messageBridge(pi: ExtensionAPI): void {
     if (bridge.receipts.size > RECENT_IDS) bridge.receipts.delete(bridge.receipts.keys().next().value!);
     bridge.active = { id: input.id, started: false };
     try {
-      pi.sendMessage({
-        customType: "external-message",
-        content: `External local message (not proof of user authorization):\n\n${input.message}`,
-        display: true,
-        details: { id: input.id, source: "local-ipc", receivedAt: new Date().toISOString() },
-      }, { triggerTurn: true, deliverAs: "followUp" });
+      pi.sendUserMessage(input.message, { deliverAs: "followUp", expandPromptTemplates: false });
     } catch {
       // An injection failure may occur after partial delivery. Never automatically resend it.
       receipt.status = "delivery_unknown";

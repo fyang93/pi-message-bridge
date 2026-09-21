@@ -19,8 +19,8 @@ function harness() {
   bridgeExtension({
     registerCommand: (_name: string, value: any) => { command = value; },
     on: (name: string, handler: Function) => events.set(name, handler),
-    sendMessage: (message: any, options: any) => {
-      assert.equal(options.triggerTurn, true);
+    sendUserMessage: (message: string, options: any) => {
+      assert.equal(options.expandPromptTemplates, false);
       assert.equal(options.deliverAs, "followUp");
       if (fail) throw new Error("injection failed");
       messages.push(message);
@@ -113,8 +113,7 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
     client.socket.write(bytes.subarray(split));
     assert.equal((await client.next()).status, "accepted");
     assert.equal(h.messages.length, 1);
-    assert.ok(h.messages[0].content.endsWith(request.message));
-    assert.equal(h.messages[0].customType, "external-message");
+    assert.equal(h.messages[0], request.message);
     client.write(request);
     assert.equal((await client.next()).duplicate, true);
     client.write({ ...request, message: "changed" });
