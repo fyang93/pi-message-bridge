@@ -22,8 +22,8 @@ function harness() {
     sendUserMessage: (message: string, options: any) => {
       assert.equal(options.expandPromptTemplates, false);
       assert.equal(options.deliverAs, "followUp");
-      if (fail) throw new Error("injection failed");
       messages.push(message);
+      if (fail) throw new Error("injection failed after partial delivery");
     },
   } as any);
   return {
@@ -95,35 +95,36 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
     client.write({ ...request, expires_at: "2026-09-21" });
     assert.equal((await client.next()).error, "invalid_message");
     h.busy(true);
-    client.write(request);
-    assert.equal((await client.next()).error, "busy");
+    const busyRequest = prompt(endpoint, "busy-1", "while running");
+    client.write({ type: "ping" });
+    assert.equal((await client.next()).busy, true);
+    client.write(busyRequest);
+    assert.equal((await client.next()).status, "accepted");
+    client.write(busyRequest);
+    assert.equal((await client.next()).duplicate, true);
     h.busy(false);
     h.pending(true);
-    client.write(request);
-    assert.equal((await client.next()).error, "busy");
+    client.write(prompt(endpoint, "pending-1", "while queued"));
+    assert.equal((await client.next()).status, "accepted");
     h.pending(false);
     await h.event("ui_prompt_start");
-    client.write(request);
-    assert.equal((await client.next()).error, "busy");
+    client.write(prompt(endpoint, "ui-1", "while prompting"));
+    assert.equal((await client.next()).status, "accepted");
     await h.event("ui_prompt_end");
+    assert.deepEqual(h.messages, ["while running", "while queued", "while prompting"]);
 
     const bytes = Buffer.from(JSON.stringify(request) + "\n");
     const split = bytes.indexOf(Buffer.from("复")) + 1;
     client.socket.write(bytes.subarray(0, split));
     client.socket.write(bytes.subarray(split));
     assert.equal((await client.next()).status, "accepted");
-    assert.equal(h.messages.length, 1);
-    assert.equal(h.messages[0], request.message);
+    assert.equal(h.messages.length, 4);
+    assert.equal(h.messages.at(-1), request.message);
     client.write(request);
     assert.equal((await client.next()).duplicate, true);
     client.write({ ...request, message: "changed" });
     assert.equal((await client.next()).error, "id_conflict");
-    // A late settlement of an earlier run cannot release a newly reserved delivery.
-    await h.event("agent_settled");
-    client.write(prompt(endpoint, "review-2"));
-    assert.equal((await client.next()).error, "busy");
-    await h.event("agent_start");
-    await h.event("agent_settled");
+    // Another message is handed to Pi without waiting for the earlier turn to settle.
     client.write(prompt(endpoint, "review-2"));
     assert.equal((await client.next()).status, "accepted");
 
@@ -142,7 +143,7 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
     assert.equal((await client.next()).error, "target_mismatch");
     await h.event("session_before_tree");
     assert.equal(existsSync(dirname(replacement.socket)), false);
-    assert.equal(h.messages.length, 2);
+    assert.equal(h.messages.length, 5);
   } finally {
     client?.socket.destroy();
     await h.event("session_shutdown");
@@ -168,8 +169,10 @@ test("oversized input, uncertain injection, and shutdown with connected clients"
     assert.equal((await client.next()).status, "delivery_unknown");
     client.write(request);
     assert.deepEqual(await client.next(), { ok: false, id: request.id, status: "delivery_unknown", duplicate: true });
+    assert.equal(h.messages.length, 1); // Uncertain retries never re-inject.
     client.write(prompt(endpoint, "other"));
-    assert.equal((await client.next()).error, "busy");
+    assert.equal((await client.next()).status, "delivery_unknown");
+    assert.equal(h.messages.length, 2);
     await h.event("session_shutdown");
     assert.equal(existsSync(dirname(endpoint.socket)), false);
     await h.event("session_shutdown");

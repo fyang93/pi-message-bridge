@@ -51,19 +51,24 @@ connections are allowed, with a ten-second inactivity timeout.
   and starts a turn. No prefix, wrapper prompt or custom message is added. Slash
   command dispatch and skill/template expansion remain disabled: text is forwarded
   literally. There is no direct tool-execution API.
-- Busy sessions, pending messages and blocking UI prompts return `busy`. Nothing
-  is queued by this bridge. The caller decides whether to coalesce, discard or
-  retry while still relevant. `expires_at` is **not** an execution deadline.
-- `accepted` means handed to Pi, not completed or successful. Check business
-  records for business outcomes. The bridge reserves admission through
-  `agent_settled`; other extensions' later asynchronous work is not tracked.
+- Every valid message is handed to Pi with `deliverAs: "followUp"`. An idle Pi
+  starts immediately; a busy Pi queues it through its native follow-up mechanism
+  without interrupting the current run. The bridge has no separate queue and never
+  rejects a message just because the session is busy. `ping.busy` is informational.
+- `expires_at` is checked only at admission, **not** when Pi consumes the queue;
+  queued messages may run after that timestamp. Callers should avoid flooding the
+  native queue and business operations must recheck time-sensitive inputs.
+- `accepted` means handed to Pi (possibly queued), not completed or successful.
+  Check business records for business outcomes; this bridge does not track run
+  completion or other extensions' asynchronous work.
 - The last 256 accepted/uncertain IDs are remembered per activation. Reusing an ID
   with different content returns `id_conflict`. Identical retries return the
   original receipt without re-injection. `delivery_unknown` must not be blindly
   retried under a new ID. No persistence or exactly-once guarantee is claimed;
   side-effecting business operations still require their own durable idempotency.
 - `off`, shutdown, reload, session replacement or tree navigation close the
-  listener and remove its directory. Already delivered messages are not cancelled.
+  listener and remove its directory. The bridge does not cancel messages already
+  handed to Pi, including queued follow-ups; their lifecycle belongs to Pi.
   Re-enable explicitly. A process killed without cleanup can leave a stale
   directory, but subsequent activations never reuse or take over that endpoint.
 
