@@ -134,7 +134,7 @@ export default function messageBridge(pi: ExtensionAPI): void {
       writeFileSync(join(directory, "endpoint.json"), JSON.stringify({
         socket: path, session_id: bridge.session, instance_id: bridge.instance, cwd: ctx.cwd, pid: process.pid,
       }) + "\n", { mode: 0o600 });
-      ctx.ui.setStatus("message-bridge", "📨 Bridge");
+      ctx.ui.setStatus("message-bridge", ctx.ui.theme.fg("accent", "Bridge: on"));
       ctx.ui.notify(JSON.stringify(status(bridge)), "info");
     } catch {
       if (current === bridge) await stop();
