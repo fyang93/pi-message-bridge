@@ -143,17 +143,15 @@ export default function messageBridge(pi: ExtensionAPI): void {
   }
 
   pi.registerCommand("message-bridge", {
-    description: "Local Socket + JSONL bridge: on | off | status (default off)",
-    handler: async (args, ctx) => {
-      const operation = args.trim() || "status";
-      if (operation === "on") await start(ctx);
-      else if (operation === "off") { await stop(); ctx.ui.notify("message-bridge: off (messages already handed to Pi, including queued ones, are not cancelled)", "info"); }
-      else if (operation === "status") ctx.ui.notify(current ? JSON.stringify(status(current)) : "message-bridge: off", "info");
-      else ctx.ui.notify("Usage: /message-bridge on|off|status", "warning");
+    description: "Show local message bridge status",
+    handler: async (_args, ctx) => {
+      ctx.ui.notify(current ? JSON.stringify(status(current)) : "message-bridge: unavailable", current ? "info" : "error");
     },
   });
+  pi.on("session_start", async (_event, ctx) => { await start(ctx); });
   pi.on("ui_prompt_start", () => { promptOpen = true; });
   pi.on("ui_prompt_end", () => { promptOpen = false; });
   pi.on("session_before_tree", stop);
+  pi.on("session_tree", async (_event, ctx) => { await start(ctx); });
   pi.on("session_shutdown", stop);
 }

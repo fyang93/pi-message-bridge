@@ -77,11 +77,10 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
   let client: Awaited<ReturnType<typeof connect>> | undefined;
   let endpoint: any;
   try {
-    await h.command("status");
-    assert.equal(h.notices.at(-1), "message-bridge: off");
-    assert.equal(h.statuses.has("message-bridge"), false);
-    await h.command("on");
+    await h.event("session_start");
     assert.equal(h.statuses.has("message-bridge"), true);
+    await h.command("status");
+    assert.match(h.notices.at(-1)!, /\"session_id\":\"session-A\"/);
     endpoint = h.endpoint();
     assert.equal(statSync(dirname(endpoint.socket)).mode & 0o777, 0o700);
     assert.equal(statSync(endpoint.socket).mode & 0o777, 0o600);
@@ -135,10 +134,10 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
     client.write(prompt(endpoint, "review-2"));
     assert.equal((await client.next()).status, "accepted");
 
-    await h.command("off");
+    await h.event("session_before_tree");
     assert.equal(h.statuses.has("message-bridge"), false);
     assert.equal(existsSync(dirname(endpoint.socket)), false);
-    await h.command("on");
+    await h.event("session_tree");
     assert.equal(h.statuses.has("message-bridge"), true);
     const replacement = h.endpoint();
     assert.notEqual(replacement.instance_id, endpoint.instance_id);
@@ -153,6 +152,13 @@ test("private endpoint, fragmented UTF-8, admission, duplicate and lifecycle bou
     await h.event("session_before_tree");
     assert.equal(h.statuses.has("message-bridge"), false);
     assert.equal(existsSync(dirname(replacement.socket)), false);
+    await h.event("session_tree");
+    assert.equal(h.statuses.has("message-bridge"), true);
+    const finalEndpoint = h.endpoint();
+    assert.equal(finalEndpoint.session_id, "session-B");
+    await h.event("session_shutdown");
+    assert.equal(h.statuses.has("message-bridge"), false);
+    assert.equal(existsSync(dirname(finalEndpoint.socket)), false);
     assert.equal(h.messages.length, 5);
   } finally {
     client?.socket.destroy();
@@ -164,7 +170,7 @@ test("oversized input, uncertain injection, and shutdown with connected clients"
   const h = harness();
   const sockets: Socket[] = [];
   try {
-    await h.command("on");
+    await h.event("session_start");
     const endpoint = h.endpoint();
     const large = await connect(endpoint.socket);
     sockets.push(large.socket);
@@ -189,6 +195,6 @@ test("oversized input, uncertain injection, and shutdown with connected clients"
     await h.event("session_shutdown");
   } finally {
     sockets.forEach((socket) => socket.destroy());
-    await h.command("off");
+    await h.event("session_shutdown");
   }
 }, 10_000);

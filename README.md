@@ -5,7 +5,7 @@ inspired by [pi-nvim](https://github.com/carderne/pi-nvim). No TCP port, broker,
 database, project imports, scheduler, or second agent. Requires Pi 0.86+ on Linux
 or macOS. Windows Named Pipes are not implemented.
 
-## Enable
+## Start and status
 
 Install from GitHub (private repositories require Git access):
 
@@ -13,21 +13,16 @@ Install from GitHub (private repositories require Git access):
 pi install -l git:github.com/fyang93/pi-message-bridge
 ```
 
-Or install a local checkout with `pi install -l /absolute/path/to/pi-message-bridge`.
-Then `/reload`. Install only one copy into each Pi session.
+Or install a local checkout with `pi install -l /absolute/path/to/pi-message-bridge`,
+then `/reload`. Install only one copy into each Pi session. The listener starts
+when a Pi session starts or resumes, restarts after session-tree navigation, and
+stops on shutdown or reload. No start/stop command is exposed.
 
-```text
-/message-bridge on
-/message-bridge status
-/message-bridge off
-```
-
-Loading/reloading does not start a listener. Once listening succeeds, the Pi status
-bar shows `Bridge: on` in the theme accent color; stopping or session teardown removes it.
-`on` also prints the socket path, session ID and instance ID. Each activation has a new private directory under
-`$XDG_RUNTIME_DIR` (or the OS temporary directory), with an `endpoint.json`
-discovery file. That file contains connection metadata, not live status. Use `ping`
-for current status; select an endpoint explicitly, never guess the newest session.
+The Pi status bar shows `Bridge: on` while listening. `/message-bridge status`
+shows the socket path, session ID and instance ID. Each session activation has a
+new private directory under `$XDG_RUNTIME_DIR` (or the OS temporary directory),
+with an `endpoint.json` discovery file. That file contains connection metadata,
+not live status; use `ping` for current status and select an endpoint explicitly.
 
 The directory has mode `0700`; socket and manifest have mode `0600`. Only trusted
 processes running as the same OS user should connect: accepted text becomes a real
@@ -67,11 +62,11 @@ connections are allowed, with a ten-second inactivity timeout.
   original receipt without re-injection. `delivery_unknown` must not be blindly
   retried under a new ID. No persistence or exactly-once guarantee is claimed;
   side-effecting business operations still require their own durable idempotency.
-- `off`, shutdown, reload, session replacement or tree navigation close the
-  listener and remove its directory. The bridge does not cancel messages already
-  handed to Pi, including queued follow-ups; their lifecycle belongs to Pi.
-  Re-enable explicitly. A process killed without cleanup can leave a stale
-  directory, but subsequent activations never reuse or take over that endpoint.
+- Shutdown, reload, session replacement or tree navigation close the listener and
+  remove its directory; a new session or completed tree navigation starts a fresh
+  endpoint. The bridge does not cancel messages already handed to Pi, including
+  queued follow-ups; their lifecycle belongs to Pi. A process killed without cleanup
+  can leave a stale directory, but subsequent activations never reuse that endpoint.
 
 ## Python client (standard library only)
 
